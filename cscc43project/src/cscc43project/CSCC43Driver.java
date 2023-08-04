@@ -18,7 +18,7 @@ public class CSCC43Driver {
 
 	public static void userType() throws SQLException {
 		Statement stmt = conn.createStatement();
-		String sql = "SELECT * FROM userType;";
+		String sql = "SELECT * FROM userType ORDER BY userTypeID;";
 		ResultSet rs = stmt.executeQuery(sql);
 		while(rs.next()){
 			//Retrieve by column name
@@ -34,7 +34,7 @@ public class CSCC43Driver {
 
 	public static void listingType() throws SQLException {
 		Statement stmt = conn.createStatement();
-		String sql = "SELECT * FROM listingType;";
+		String sql = "SELECT * FROM listingType ORDER BY typeID;";
 		ResultSet rs = stmt.executeQuery(sql);
 		while(rs.next()){
 			//Retrieve by column name
@@ -50,7 +50,7 @@ public class CSCC43Driver {
 	
 	public static void listingStatus() throws SQLException {
 		Statement stmt = conn.createStatement();
-		String sql = "SELECT * FROM listingStatus;";
+		String sql = "SELECT * FROM listingStatus ORDER BY statusID;";
 		ResultSet rs = stmt.executeQuery(sql);
 		while(rs.next()){
 			//Retrieve by column name
@@ -651,6 +651,203 @@ public class CSCC43Driver {
 		return renter;
 	}
 	
+	public static boolean checkUserHostOfListing(int uid, int lid) throws SQLException {
+		if (checkUserHost(uid))
+		{
+			PreparedStatement stmt = conn.prepareStatement("SELECT listingID from listing where hostID = ? and listingID = ?");
+			stmt.setInt(1, uid);
+			stmt.setInt(2, lid);
+			ResultSet rs = stmt.executeQuery();
+			if (rs.next())
+				return true;
+		}
+		return false;
+	}
+	
+	public static void listAvailability (int listingID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT * FROM ListingAvailability WHERE listingID = ? ORDER BY availabilityID");
+		stmt.setInt(1, listingID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void listAllAvailability() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT * FROM ListingAvailability ORDER BY availabilityID");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static boolean checkAvailabilityInListing (int listingID, int availabilityID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT * FROM ListingAvailability WHERE listingID = ? and availabilityID = ?");
+		stmt.setInt(1, listingID);
+		stmt.setInt(2, availabilityID);
+		ResultSet rs = stmt.executeQuery();
+		return (rs.next());
+	}
+	
+	public static void createAvailability (int listingID) throws SQLException {
+		System.out.println("Enter start date (YYYY-MM-DD)");
+		String startDate = scanner.nextLine();
+		System.out.println("Enter end date YYYY-MM-DD");
+		String endDate = scanner.nextLine();
+		LocalDate start = LocalDate.parse(startDate);
+		LocalDate end = LocalDate.parse(endDate);
+		if (end.isBefore(start))
+		{
+			System.out.println("Invalid: end date before start date");
+			return;
+		}
+		System.out.println("Enter price (integer)");
+		int price = scanner.nextInt();
+		scanner.nextLine();
+		
+
+		
+		PreparedStatement stmt = conn.prepareStatement("INSERT INTO ListingAvailability(listingID, startDate, endDate, rentalPrice) VALUES (?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+		stmt.setInt(1, listingID);
+		stmt.setString(2, startDate);
+		stmt.setString(3, endDate);
+		stmt.setInt(4, price);
+		stmt.executeUpdate();
+		ResultSet generatedKey = stmt.getGeneratedKeys();
+		int lastinsertid = -1;
+		if (generatedKey.next()) {
+		    lastinsertid = generatedKey.getInt(1);
+		}
+		System.out.println("Availability created. Inserted record's ID: " + lastinsertid);
+	}
+
+	public static void updateAvailability (int listingID) throws SQLException {
+		// Since availability records will be deleted when a booking is created, this will serve as preventing changes for booked days
+		System.out.println("Enter the availability ID to update");
+		int availabilityID = scanner.nextInt();
+		scanner.nextLine();
+		if (!checkAvailabilityInListing(listingID, availabilityID))
+		{
+			System.out.println("Availability ID does not match the current listing");
+			return;
+		}
+		System.out.println("Enter start date (YYYY-MM-DD)");
+		String startDate = scanner.nextLine();
+		System.out.println("Enter end date YYYY-MM-DD");
+		String endDate = scanner.nextLine();
+		LocalDate start = LocalDate.parse(startDate);
+		LocalDate end = LocalDate.parse(endDate);
+		if (end.isBefore(start))
+		{
+			System.out.println("Invalid: end date before start date");
+			return;
+		}
+		System.out.println("Enter price (integer)");
+		int price = scanner.nextInt();
+		scanner.nextLine();
+		
+		PreparedStatement stmt = conn.prepareStatement("UPDATE ListingAvailability set startDate=?, endDate=?, rentalPrice=? where availabilityID = ?", Statement.RETURN_GENERATED_KEYS);
+		stmt.setString(1, startDate);
+		stmt.setString(2, endDate);
+		stmt.setInt(3, price);
+		stmt.setInt(4, availabilityID);
+		stmt.executeUpdate();
+		System.out.println("Availability updated.");
+		
+	}
+	
+	public static void deleteAvailability (int listingID) throws SQLException {
+		System.out.println("Enter the availability ID to delete");
+		int availabilityID = scanner.nextInt();
+		scanner.nextLine();
+		if (!checkAvailabilityInListing(listingID, availabilityID))
+		{
+			System.out.println("Availability ID does not match the current listing");
+			return;
+		}
+		
+		PreparedStatement stmt = conn.prepareStatement("DELETE from ListingAvailability where availabilityID = ?", Statement.RETURN_GENERATED_KEYS);
+		stmt.setInt(1, availabilityID);
+		stmt.executeUpdate();
+		System.out.println("Availability deleted.");
+	}
+	
+	public static void listAllListings() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Listing ORDER BY listingID");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void listListings(int uid) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Listing WHERE hostID=? ORDER BY listingID");
+		stmt.setInt(1, uid);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void updateListing (int listingID) throws SQLException {
+		System.out.println("Enter a new title: ");
+		String newTitle = scanner.nextLine();
+		System.out.println("Enter a new description: ");
+		String newDescription = scanner.nextLine();
+		PreparedStatement stmt = conn.prepareStatement("UPDATE Listing set title = ?, description = ? where listingID = ?");
+		stmt.setString(1, newTitle);
+		stmt.setString(2, newDescription);
+		stmt.setInt(3, listingID);
+		stmt.executeUpdate();
+		System.out.println("Listing updated.");
+	}
+	
+	public static void deleteListing (int listingID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("UPDATE Listing set statusID = 5 where listingID = ?");
+		stmt.setInt(1, listingID);
+		stmt.executeUpdate();
+		System.out.println("Listing deleted.");
+	}
 	
 	public static void main(String[] args) throws ClassNotFoundException {
 		//Register JDBC driver
@@ -712,6 +909,13 @@ public class CSCC43Driver {
 				case "users":
 					users();
 					break;
+				case "availability":
+				case "availabilities":
+					listAllAvailability();
+					break;
+				case "listings":
+					listAllListings();
+					break;
 				case "current user":
 					System.out.println(Integer.toString(currentUserID));
 					break;
@@ -737,17 +941,47 @@ public class CSCC43Driver {
 				case "current listing":
 					System.out.println(Integer.toString(currentListingID));
 					break;
-				case "list availability":
+				case "list listing":
+					listListings(currentUserID);
 					break;
-				case "add availability":
+				case "list availability": // current listing
+					listAvailability(currentListingID);
 					break;
-				case "update availability":
+				case "create availability":
+				case "add availability": // current listing
+					if (checkUserHostOfListing(currentUserID, currentListingID))
+						createAvailability(currentListingID);
+					else {
+						System.out.println("Not a host of the current listing.");
+					}
+					break;
+				case "update availability": // current listing
+					if (checkUserHostOfListing(currentUserID, currentListingID))
+						updateAvailability(currentListingID);
+					else {
+						System.out.println("Not a host of the current listing.");
+					}
 					break;
 				case "delete availability":
+					if (checkUserHostOfListing(currentUserID, currentListingID))
+						deleteAvailability(currentListingID);
+					else {
+						System.out.println("Not a host of the current listing.");
+					}
 					break;
 				case "delete listing":
+					if (checkUserHostOfListing(currentUserID, currentListingID))
+						deleteListing(currentListingID);
+					else {
+						System.out.println("Not a host of the current listing.");
+					}
 					break;
-				case "update listing":
+				case "update listing": // only info, not location
+					if (checkUserHostOfListing(currentUserID, currentListingID))
+						updateListing(currentListingID);
+					else {
+						System.out.println("Not a host of the current listing.");
+					}
 					break;
 				case "list amenity": // current listing
 					break;
