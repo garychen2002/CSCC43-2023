@@ -599,13 +599,12 @@ public class CSCC43Driver {
 		// insert the listing and save its ID
 		
 		PreparedStatement stmt = conn.prepareStatement("INSERT INTO Listing(title, hostID, typeID, statusID, coordinates, address, cityID, postalCode, description)"
-				+ " VALUES (?, ?, ?, ?, ST_GeomFromText(?), ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+				+ " VALUES (?, ?, ?, ?, ST_GeomFromText(?, 4326), ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
 		stmt.setString(1, title);
 		stmt.setInt(2, uid);
 		stmt.setInt(3, listingTypeID);
 		stmt.setInt(4, 3); // available statusID?
-		stmt.setString(5, "POINT(" + Double.toString(longitude) + " " + Double.toString(latitude) + ")");
-		// yes it is longitude and latitude in this
+		stmt.setString(5, "POINT(" + Double.toString(latitude) + " " + Double.toString(longitude) + ")");
 		stmt.setString(6, address);
 		stmt.setInt(7, cityID);
 		stmt.setString(8, postalCode);
@@ -793,17 +792,24 @@ public class CSCC43Driver {
 	}
 	
 	public static void listAllListings() throws SQLException {
-		PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Listing ORDER BY listingID");
+		PreparedStatement stmt = conn.prepareStatement("SELECT l.*, ST_Latitude(l.coordinates) as latitude, ST_Longitude(l.coordinates) as longitude FROM Listing l ORDER BY listingID");
 		ResultSet rs = stmt.executeQuery();
 		ResultSetMetaData rsmd = rs.getMetaData();
 		int columns = rsmd.getColumnCount();
 		while(rs.next()){
-			for (int i = 1; i <= columns; i++)
+			for (int i = 1; i <= columns-2; i++)
 			{
 				if (i > 1)
 					System.out.print(", ");
 				String value = rs.getString(i);
-				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				if (rsmd.getColumnLabel(i).equals("coordinates"))
+				{
+					System.out.print(rsmd.getColumnLabel(columns-1) + ": " + rs.getString(columns-1)); // latitude
+					System.out.print(", ");
+					System.out.print(rsmd.getColumnLabel(columns) + ": " + rs.getString(columns)); // longitude
+				}
+				else
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
 			}
 			System.out.println("");
 		}
@@ -811,18 +817,25 @@ public class CSCC43Driver {
 	}
 	
 	public static void listListings(int uid) throws SQLException {
-		PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Listing WHERE hostID=? ORDER BY listingID");
+		PreparedStatement stmt = conn.prepareStatement("SELECT l.*, ST_Latitude(l.coordinates) as latitude, ST_Longitude(l.coordinates) as longitude FROM Listing l WHERE hostID=? ORDER BY listingID");
 		stmt.setInt(1, uid);
 		ResultSet rs = stmt.executeQuery();
 		ResultSetMetaData rsmd = rs.getMetaData();
 		int columns = rsmd.getColumnCount();
 		while(rs.next()){
-			for (int i = 1; i <= columns; i++)
+			for (int i = 1; i <= columns-2; i++)
 			{
 				if (i > 1)
 					System.out.print(", ");
 				String value = rs.getString(i);
-				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				if (rsmd.getColumnLabel(i).equals("coordinates"))
+				{
+					System.out.print(rsmd.getColumnLabel(columns-1) + ": " + rs.getString(columns-1)); // latitude
+					System.out.print(", ");
+					System.out.print(rsmd.getColumnLabel(columns) + ": " + rs.getString(columns)); // longitude
+				}
+				else
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
 			}
 			System.out.println("");
 		}
@@ -848,6 +861,8 @@ public class CSCC43Driver {
 		stmt.executeUpdate();
 		System.out.println("Listing deleted.");
 	}
+	
+	
 	
 	public static void main(String[] args) throws ClassNotFoundException {
 		//Register JDBC driver
