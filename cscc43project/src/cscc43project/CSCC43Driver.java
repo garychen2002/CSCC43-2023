@@ -862,6 +862,68 @@ public class CSCC43Driver {
 		System.out.println("Listing deleted.");
 	}
 	
+	public static void listAmenity(int listingID) throws SQLException {
+		
+		PreparedStatement stmt = conn.prepareStatement("SELECT a1.name FROM Amenity a1 inner join ListingAmenities la on la.amenityID=a1.amenityID where la.listingID=?");
+		stmt.setInt(1, listingID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+	}
+	
+	public static void updateAmenity(int listingID) throws SQLException {
+		System.out.println("Enter the new list of amenities: ");
+		// amenity loop
+		ArrayList<String> amenities = new ArrayList<String>();
+		ArrayList<Integer> amenityIDs = new ArrayList<Integer>();
+		boolean quit = true;
+		while (quit)
+		{
+			System.out.println("Enter next amenity, or type done:");
+			String input = scanner.nextLine();
+			switch (input)
+			{
+				case "done":
+					quit = false;
+					break;
+				default:
+					// validate amenity
+					int amenityID = validateAmenity(input);
+					if (amenityID != -1)
+					{
+						// add to amenities list
+						amenities.add(input.toLowerCase());
+						amenityIDs.add(amenityID);
+					}
+					else {
+						System.out.println("INVALID AMENITY");
+					}
+			}		
+		}
+		PreparedStatement delete = conn.prepareStatement("DELETE from ListingAmenities where listingID=?");
+		delete.setInt(1, listingID);
+		delete.executeUpdate();
+		
+		PreparedStatement stmt2 = conn.prepareStatement("INSERT INTO ListingAmenities(listingID, amenityID) VALUES (?, ?)");
+		for (int i = 0; i < amenityIDs.size(); i++)
+		{
+			stmt2.setInt(1, listingID);
+			stmt2.setInt(2, amenityIDs.get(i));
+			stmt2.executeUpdate();
+		}		
+		System.out.println("Amenities updated.");
+	}
+	
 	
 	
 	public static void main(String[] args) throws ClassNotFoundException {
@@ -928,6 +990,7 @@ public class CSCC43Driver {
 				case "availabilities":
 					listAllAvailability();
 					break;
+				case "all listings":
 				case "listings":
 					listAllListings();
 					break;
@@ -957,6 +1020,7 @@ public class CSCC43Driver {
 					System.out.println(Integer.toString(currentListingID));
 					break;
 				case "list listing":
+				case "list listings":
 					listListings(currentUserID);
 					break;
 				case "list availability": // current listing
@@ -999,8 +1063,14 @@ public class CSCC43Driver {
 					}
 					break;
 				case "list amenity": // current listing
+					listAmenity(currentListingID);
 					break;
 				case "update amenity": // current listing
+					if (checkUserHostOfListing(currentUserID, currentListingID))
+						updateAmenity(currentListingID);
+					else {
+						System.out.println("Not a host of the current listing.");
+					}
 					break;
 				case "book listing": // current user must be renter and on current listing
 					break;
