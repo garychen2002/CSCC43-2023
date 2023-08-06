@@ -1145,6 +1145,25 @@ public class CSCC43Driver {
 		rs.close();
 	}
 	
+	public static void listBookedBookingsByUser(int userID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls where b.statusID=ls.statusID and renterID=? and b.statusID=1");
+		stmt.setInt(1, userID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
 	public static void listBookedBookingsByListing(int listingID) throws SQLException {
 		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls where b.statusID=ls.statusID and listingID=? and b.statusID=1");
 		stmt.setInt(1, listingID);
@@ -1364,6 +1383,81 @@ public class CSCC43Driver {
 		System.out.println("Successfully occupied! Enjoy your stay.");
 	}
 	
+	public static void addCommentByHost (int userID) throws SQLException {
+		// find all bookings for all listings by this host: joins
+	}
+	
+	public static void addCommentByRenter (int userID) throws SQLException {
+		listBookingsByUser(userID); // Display relevant bookings
+		System.out.println("Enter the booking ID to review: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid ID: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int bookingID = scanner.nextInt();
+		scanner.nextLine();
+		
+		// Validate bookingID is valid for the renter/listing
+		PreparedStatement idCheck = conn.prepareStatement("SELECT bookingID from booking where bookingID = ? and renterID = ?");
+		idCheck.setInt(1, bookingID);
+		idCheck.setInt(2, userID);
+		ResultSet rs = idCheck.executeQuery();
+		if (!rs.next())
+		{
+			System.out.println("Invalid ID");
+			return;
+		}
+		
+		System.out.println("Leave a comment: ");
+		String comment = scanner.nextLine();
+		System.out.println("Rate the experience from 1 to 5 stars: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid input: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int experienceRating = scanner.nextInt();
+		scanner.nextLine();
+		if (experienceRating < 1 || experienceRating > 5)
+		{
+			System.out.println("rating out of bounds");
+			return;
+		}
+		System.out.println("Rate the host from 1 to 5 stars: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid input: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int hostRating = scanner.nextInt();
+		scanner.nextLine();
+		if (hostRating < 1 || hostRating > 5)
+		{
+			System.out.println("rating out of bounds");
+			return;
+		}
+		
+		PreparedStatement stmt = conn.prepareStatement("INSERT INTO ListingReview (bookingID, comment, experienceRating, hostRating) VALUES (?, ?, ?, ?)");
+		stmt.setInt(1, bookingID);
+		stmt.setString(2, comment);
+		stmt.setInt(3, experienceRating);
+		stmt.setInt(4, hostRating);
+		stmt.executeUpdate();
+		System.out.println("Rating sent!");
+		
+	}
+	
+	public static void listCommentsForRenter() {
+		int userID;
+	}
+	
+	public static void listCommentsForListing() {
+		int listingID;
+	}
 	
 	public static void main(String[] args) throws ClassNotFoundException {
 		//Register JDBC driver
@@ -1553,8 +1647,20 @@ public class CSCC43Driver {
 					listBookingsByUser(currentUserID);
 					break;
 				case "add comment":
+					if (checkUserRenter(currentUserID))
+						addCommentByRenter(currentUserID);
+					else {
+						addCommentByHost(currentUserID);
+					}
+					break;
+				case "view comments user":
+					listCommentsForRenter();
+					break;
+				case "view comments listing":
+					listCommentsForListing();
 					break;
 				case "search listing":
+					searchListings();
 					break;
 				// Reports
 				case "report total bookings date city":
