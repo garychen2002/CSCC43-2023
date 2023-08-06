@@ -98,7 +98,7 @@ create table ListingAvailability (
 	foreign key (listingID) references Listing (listingID),
     startDate date,
     endDate date,
-    rentalPrice decimal
+    rentalPrice decimal(10,2)
 );
 
 create table Booking (
@@ -109,7 +109,7 @@ create table Booking (
     foreign key (listingID) references Listing (listingID),
     startDate date,
     endDate date,
-    rentalPrice decimal,
+    rentalPrice decimal(10,2),
 	statusID integer,
 	foreign key (statusID) references ListingStatus (statusID)
 );

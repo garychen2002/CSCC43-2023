@@ -721,17 +721,21 @@ public class CSCC43Driver {
 			System.out.println("Invalid: end date before start date");
 			return;
 		}
-		System.out.println("Enter price (integer)");
-		int price = scanner.nextInt();
+		System.out.println("Enter price (number without dollar sign)");
+		if (!scanner.hasNextDouble())
+		{
+			System.out.println("Invalid Input: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		double price = scanner.nextDouble();
 		scanner.nextLine();
-		
-
 		
 		PreparedStatement stmt = conn.prepareStatement("INSERT INTO ListingAvailability(listingID, startDate, endDate, rentalPrice) VALUES (?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
 		stmt.setInt(1, listingID);
 		stmt.setString(2, startDate);
 		stmt.setString(3, endDate);
-		stmt.setInt(4, price);
+		stmt.setDouble(4, price);
 		stmt.executeUpdate();
 		ResultSet generatedKey = stmt.getGeneratedKeys();
 		int lastinsertid = -1;
@@ -762,14 +766,20 @@ public class CSCC43Driver {
 			System.out.println("Invalid: end date before start date");
 			return;
 		}
-		System.out.println("Enter price (integer)");
-		int price = scanner.nextInt();
+		System.out.println("Enter price (without dollar sign)");
+		if (!scanner.hasNextDouble())
+		{
+			System.out.println("Invalid Input: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		double price = scanner.nextDouble();
 		scanner.nextLine();
 		
 		PreparedStatement stmt = conn.prepareStatement("UPDATE ListingAvailability set startDate=?, endDate=?, rentalPrice=? where availabilityID = ?", Statement.RETURN_GENERATED_KEYS);
 		stmt.setString(1, startDate);
 		stmt.setString(2, endDate);
-		stmt.setInt(3, price);
+		stmt.setDouble(3, price);
 		stmt.setInt(4, availabilityID);
 		stmt.executeUpdate();
 		System.out.println("Availability updated.");
@@ -968,7 +978,7 @@ public class CSCC43Driver {
 		String availabilityEndDateString = rs2.getString("endDate");
 		LocalDate availabilityStart = LocalDate.parse(availabilityStartDateString);
 		LocalDate availabilityEnd = LocalDate.parse(availabilityEndDateString);
-		int rentalPrice = rs2.getInt("rentalPrice");
+		double rentalPrice = rs2.getDouble("rentalPrice");
 
 		
 		System.out.println("Enter your starting date: (YYYY-MM-DD)");
@@ -1022,7 +1032,7 @@ public class CSCC43Driver {
 			reinsert.setInt(1, listingID);
 			reinsert.setString(2, endNew.toString());
 			reinsert.setString(3, availabilityEndDateString);
-			reinsert.setInt(4,rentalPrice);
+			reinsert.setDouble(4,rentalPrice);
 			reinsert.executeUpdate();
 		}
 		else if (!startEqual && endEqual) // availability from old start to new start -1
@@ -1030,7 +1040,7 @@ public class CSCC43Driver {
 			reinsert.setInt(1, listingID);
 			reinsert.setString(2, availabilityStartDateString);
 			reinsert.setString(3, startNew.toString());
-			reinsert.setInt(4,rentalPrice);
+			reinsert.setDouble(4,rentalPrice);
 			reinsert.executeUpdate();
 		}
 		else // both unequal: reinsert 2 new availability from old start to new start -1, new end+1 to old end
@@ -1039,13 +1049,13 @@ public class CSCC43Driver {
 			reinsert.setInt(1, listingID);
 			reinsert.setString(2, availabilityStartDateString);
 			reinsert.setString(3, startNew.toString());
-			reinsert.setInt(4,rentalPrice);
+			reinsert.setDouble(4,rentalPrice);
 			reinsert.executeUpdate();
 			// end
 			reinsert.setInt(1, listingID);
 			reinsert.setString(2, endNew.toString());
 			reinsert.setString(3, availabilityEndDateString);
-			reinsert.setInt(4,rentalPrice);
+			reinsert.setDouble(4,rentalPrice);
 			reinsert.executeUpdate();
 		}
 		
@@ -1054,7 +1064,7 @@ public class CSCC43Driver {
 		booking.setInt(2,listingID);
 		booking.setString(3, start.toString());
 		booking.setString(4, end.toString());
-		booking.setInt(5, rentalPrice);
+		booking.setDouble(5, rentalPrice);
 		booking.setInt(6, 1); // booked status
 		booking.executeUpdate();
 		ResultSet generatedKey = booking.getGeneratedKeys();
@@ -1213,7 +1223,7 @@ public class CSCC43Driver {
 		
 		Date start = rs2.getDate("startDate");
 		Date end = rs2.getDate("endDate");
-		int rentalPrice = rs2.getInt("rentalPrice");
+		double rentalPrice = rs2.getDouble("rentalPrice");
 
 		LocalDate localStart = start.toLocalDate();
 		LocalDate localEnd = end.toLocalDate();
@@ -1235,7 +1245,7 @@ public class CSCC43Driver {
 		dateAdd.setInt(1, listingID);
 		dateAdd.setDate(2, newDate);
 		dateAdd.setDate(3, end);
-		dateAdd.setInt(4, rentalPrice);
+		dateAdd.setDouble(4, rentalPrice);
 		dateAdd.executeUpdate();
 	}
 	
@@ -1286,7 +1296,7 @@ public class CSCC43Driver {
 		
 		Date start = rs2.getDate("startDate");
 		Date end = rs2.getDate("endDate");
-		int rentalPrice = rs2.getInt("rentalPrice");
+		double rentalPrice = rs2.getDouble("rentalPrice");
 
 		LocalDate localStart = start.toLocalDate();
 		LocalDate localEnd = end.toLocalDate();
@@ -1308,7 +1318,7 @@ public class CSCC43Driver {
 		dateAdd.setInt(1, listingID);
 		dateAdd.setDate(2, newDate);
 		dateAdd.setDate(3, end);
-		dateAdd.setInt(4, rentalPrice);
+		dateAdd.setDouble(4, rentalPrice);
 		dateAdd.executeUpdate();
 		
 		System.out.println("Successfully updated availability.");
