@@ -3,6 +3,7 @@ package cscc43project;
 import java.sql.*;
 import java.text.MessageFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -924,7 +925,170 @@ public class CSCC43Driver {
 		System.out.println("Amenities updated.");
 	}
 	
+	public static void bookListing(int listingID, int renterID) throws SQLException {
+		// Show availability slots
+		
+		PreparedStatement slots = conn.prepareStatement("SELECT * FROM ListingAvailability where listingID=?");
+		slots.setInt(1,listingID);
+		ResultSet rs = slots.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		
+		System.out.println("Enter the availability ID you want to book: ");
+		int availabilityID = scanner.nextInt();
+		scanner.nextLine();
+		if (!checkAvailabilityInListing(listingID, availabilityID))
+		{
+			System.out.println("Availability ID does not match the current listing");
+			return;
+		}
+		
+		PreparedStatement info = conn.prepareStatement("SELECT * FROM ListingAvailability where listingID=? and availabilityID=?");
+		info.setInt(1,listingID);
+		info.setInt(2,availabilityID);
+		ResultSet rs2 = info.executeQuery();
+		rs2.next(); // we know it exists because we just checked
+		String availabilityStartDateString = rs2.getString("startDate");
+		String availabilityEndDateString = rs2.getString("endDate");
+		LocalDate availabilityStart = LocalDate.parse(availabilityStartDateString);
+		LocalDate availabilityEnd = LocalDate.parse(availabilityEndDateString);
+		int rentalPrice = rs2.getInt("rentalPrice");
+
+		
+		System.out.println("Enter your starting date: (YYYY-MM-DD)");
+		String startDate = scanner.nextLine();
+		LocalDate start = LocalDate.parse(startDate);
+		LocalDate startNew = start.minusDays(1);
+		
+		if (start.isBefore(availabilityStart))
+		{
+			System.out.println("Invalid: start date before availability start date");
+			return;
+		}
+		
+		System.out.println("Enter your ending date: (YYYY-MM-DD)");
+		String endDate = scanner.nextLine();
+		LocalDate end = LocalDate.parse(endDate);
+		LocalDate endNew = end.plusDays(1);
+
+		if (end.isBefore(start))
+		{
+			System.out.println("Invalid: end date before start date");
+			return;
+		}
+
+		if (end.isBefore(availabilityStart))
+		{
+			System.out.println("Invalid: end date before availability start date");
+			return;
+		}
+		if (end.isAfter(availabilityEnd))
+		{
+			System.out.println("Invalid: end date after availability end date");
+			return;
+		}
+		if (start.isAfter(availabilityEnd))
+		{
+			System.out.println("Invalid: start date after availability end date");
+			return;
+		}
+		boolean startEqual = start.isEqual(availabilityStart);
+		boolean endEqual = end.isEqual(availabilityEnd);
+
+		
+		PreparedStatement reinsert = conn.prepareStatement("INSERT into ListingAvailability (listingID, startDate, endDate, rentalPrice) VALUES (?, ?, ?, ?)");
+		if (startEqual && endEqual) // matches availability times exactly
+		{
+			// do nothing
+		}
+		else if (startEqual && !endEqual) // reinsert availability from new end+1 to old end
+		{
+			reinsert.setInt(1, listingID);
+			reinsert.setString(2, endNew.toString());
+			reinsert.setString(3, availabilityEndDateString);
+			reinsert.setInt(4,rentalPrice);
+			reinsert.executeUpdate();
+		}
+		else if (!startEqual && endEqual) // availability from old start to new start -1
+		{
+			reinsert.setInt(1, listingID);
+			reinsert.setString(2, availabilityStartDateString);
+			reinsert.setString(3, startNew.toString());
+			reinsert.setInt(4,rentalPrice);
+			reinsert.executeUpdate();
+		}
+		else // both unequal: reinsert 2 new availability from old start to new start -1, new end+1 to old end
+		{
+			// start
+			reinsert.setInt(1, listingID);
+			reinsert.setString(2, availabilityStartDateString);
+			reinsert.setString(3, startNew.toString());
+			reinsert.setInt(4,rentalPrice);
+			reinsert.executeUpdate();
+			// end
+			reinsert.setInt(1, listingID);
+			reinsert.setString(2, endNew.toString());
+			reinsert.setString(3, availabilityEndDateString);
+			reinsert.setInt(4,rentalPrice);
+			reinsert.executeUpdate();
+		}
+		
+		PreparedStatement booking = conn.prepareStatement("INSERT INTO Booking (renterID, listingID, startDate, endDate, rentalPrice, statusID) VALUES (?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+		booking.setInt(1, renterID);
+		booking.setInt(2,listingID);
+		booking.setString(3, start.toString());
+		booking.setString(4, end.toString());
+		booking.setInt(5, rentalPrice);
+		booking.setInt(6, 1); // booked status
+		booking.executeUpdate();
+		ResultSet generatedKey = booking.getGeneratedKeys();
+		int lastinsertid = -1;
+		if (generatedKey.next()) {
+		    lastinsertid = generatedKey.getInt(1);
+		}		
+		
+		PreparedStatement bookingHistory = conn.prepareStatement("INSERT INTO BookingHistory (bookingID, statusID, eventBy, eventDateTime) VALUES (?, ?, ?, ?)");
+		bookingHistory.setInt(1, lastinsertid);
+		bookingHistory.setInt(2, 1); // booked
+		bookingHistory.setInt(3, renterID);
+		bookingHistory.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+		bookingHistory.executeUpdate();
+		
+		System.out.println("Successfully booked. ID: " + Integer.toString(lastinsertid));
+
+		PreparedStatement delete = conn.prepareStatement("DELETE from ListingAvailability where availabilityID=?");
+		delete.setInt(1, availabilityID);
+		delete.executeUpdate();
+	}
 	
+	public static void listBookings(int listingID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT * from Booking where listingID=?");
+		stmt.setInt(1, listingID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
 	
 	public static void main(String[] args) throws ClassNotFoundException {
 		//Register JDBC driver
@@ -1073,10 +1237,18 @@ public class CSCC43Driver {
 					}
 					break;
 				case "book listing": // current user must be renter and on current listing
+					if (checkUserRenter(currentUserID))
+						bookListing(currentListingID, currentUserID);
+					else {
+						System.out.println("Not a renter.");
+					}
 					break;
 				case "cancel booking":
 					break;
 				case "occupy booking":
+					break;
+				case "list booking":
+					listBookings(currentListingID);
 					break;
 				case "add comment":
 					break;
