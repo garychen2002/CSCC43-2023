@@ -1275,6 +1275,8 @@ public class CSCC43Driver {
 		history.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
 		history.executeUpdate();		
 		
+		System.out.println("Successfully cancelled booking.");
+		
 		// Insert new availability
 		PreparedStatement infoCheck = conn.prepareStatement("SELECT startDate, endDate, rentalPrice from booking where bookingID=? and listingID=?");
 		infoCheck.setInt(1, bookingID);
@@ -1308,6 +1310,48 @@ public class CSCC43Driver {
 		dateAdd.setDate(3, end);
 		dateAdd.setInt(4, rentalPrice);
 		dateAdd.executeUpdate();
+		
+		System.out.println("Successfully updated availability.");
+
+	}
+	
+	public static void occupyBooking(int userID, int listingID) throws SQLException {
+		listBookedBookingsByUserAndListing(userID, listingID); // Display relevant bookings
+		System.out.println("Enter the booking ID to occupy: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid ID: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int bookingID = scanner.nextInt();
+		scanner.nextLine();
+		
+		// Validate bookingID is valid for the renter/listing
+		PreparedStatement idCheck = conn.prepareStatement("SELECT bookingID from booking where bookingID = ? and renterID = ? and listingID = ? and statusID=1");
+		idCheck.setInt(1, bookingID);
+		idCheck.setInt(2, userID);
+		idCheck.setInt(3, listingID);
+		ResultSet rs = idCheck.executeQuery();
+		if (!rs.next())
+		{
+			System.out.println("Invalid ID");
+			return;
+		}
+		// Set occupied.
+		PreparedStatement occupy = conn.prepareStatement("UPDATE Booking SET statusID=4 where bookingID=?");
+		occupy.setInt(1, bookingID);
+		occupy.executeUpdate();
+		
+		// Insert history value
+		PreparedStatement history = conn.prepareStatement("INSERT INTO BookingHistory (bookingID, statusID, eventBy, eventDateTime) VALUES (?, ?, ?, ?)");
+		history.setInt(1, bookingID);
+		history.setInt(2, 4); // occupy
+		history.setInt(3, userID);
+		history.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+		history.executeUpdate();					
+		
+		System.out.println("Successfully occupied! Enjoy your stay.");
 	}
 	
 	
@@ -1480,6 +1524,17 @@ public class CSCC43Driver {
 					}
 					break;
 				case "occupy booking":
+					if (checkUserRenter(currentUserID)) // renter cancel: has booked?
+					{
+						if (checkUserBookedListing(currentUserID, currentListingID))
+							occupyBooking(currentUserID, currentListingID);
+						else {
+							System.out.println("You don't have a pending booking for this listing.");
+						}
+					}
+					else {
+						System.out.println("Not a renter.");
+					}
 					break;
 				case "list bookings listing":
 					listBookingsByListing(currentListingID);
