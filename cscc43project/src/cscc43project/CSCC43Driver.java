@@ -945,6 +945,12 @@ public class CSCC43Driver {
 		}
 		
 		System.out.println("Enter the availability ID you want to book: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid ID: Not a number");
+			scanner.nextLine();
+			return;
+		}
 		int availabilityID = scanner.nextInt();
 		scanner.nextLine();
 		if (!checkAvailabilityInListing(listingID, availabilityID))
@@ -1071,8 +1077,8 @@ public class CSCC43Driver {
 		delete.executeUpdate();
 	}
 	
-	public static void listBookings(int listingID) throws SQLException {
-		PreparedStatement stmt = conn.prepareStatement("SELECT * from Booking where listingID=?");
+	public static void listBookingsByListing(int listingID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls where listingID=? and b.statusID=ls.statusID");
 		stmt.setInt(1, listingID);
 		ResultSet rs = stmt.executeQuery();
 		ResultSetMetaData rsmd = rs.getMetaData();
@@ -1089,6 +1095,221 @@ public class CSCC43Driver {
 		}
 		rs.close();
 	}
+	
+	public static void listBookingsByUser(int userID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls where b.statusID=ls.statusID and renterID=?");
+		stmt.setInt(1, userID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void listBookedBookingsByUserAndListing(int userID, int listingID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls where b.statusID=ls.statusID and renterID=? and listingID=? and b.statusID=1");
+		stmt.setInt(1, userID);
+		stmt.setInt(2, listingID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void listBookedBookingsByListing(int listingID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls where b.statusID=ls.statusID and listingID=? and b.statusID=1");
+		stmt.setInt(1, listingID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static boolean checkUserBookedListing(int userID, int listingID) throws SQLException {
+		if (checkUserRenter(userID))
+		{
+			PreparedStatement stmt = conn.prepareStatement("SELECT bookingID from Booking where renterID = ? and listingID = ? and statusID = 1");
+			stmt.setInt(1, userID);
+			stmt.setInt(2, listingID);
+			ResultSet rs = stmt.executeQuery();
+			if (rs.next())
+				return true;
+		}
+		return false;
+	}
+	
+	public static void cancelBookingByRenter(int userID, int listingID) throws SQLException {
+		listBookedBookingsByUserAndListing(userID, listingID); // Display relevant bookings
+		System.out.println("Enter the booking ID to cancel: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid ID: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int bookingID = scanner.nextInt();
+		scanner.nextLine();
+		
+		// Validate bookingID is valid for the renter/listing
+		PreparedStatement idCheck = conn.prepareStatement("SELECT bookingID from booking where bookingID = ? and renterID = ? and listingID = ? and statusID=1");
+		idCheck.setInt(1, bookingID);
+		idCheck.setInt(2, userID);
+		idCheck.setInt(3, listingID);
+		ResultSet rs = idCheck.executeQuery();
+		if (!rs.next())
+		{
+			System.out.println("Invalid ID");
+			return;
+		}
+		// Set cancelled.
+		PreparedStatement cancel = conn.prepareStatement("UPDATE Booking SET statusID=2 where bookingID=?");
+		cancel.setInt(1, bookingID);
+		cancel.executeUpdate();
+		
+		// Insert history value
+		PreparedStatement history = conn.prepareStatement("INSERT INTO BookingHistory (bookingID, statusID, eventBy, eventDateTime) VALUES (?, ?, ?, ?)");
+		history.setInt(1, bookingID);
+		history.setInt(2, 2); // cancel
+		history.setInt(3, userID);
+		history.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+		history.executeUpdate();		
+		
+		// Insert new availability
+		PreparedStatement infoCheck = conn.prepareStatement("SELECT startDate, endDate, rentalPrice from booking where bookingID=? and renterID=? and listingID=?");
+		infoCheck.setInt(1, bookingID);
+		infoCheck.setInt(2, userID);
+		infoCheck.setInt(3, listingID);
+		ResultSet rs2 = infoCheck.executeQuery();
+		rs2.next();
+		
+		Date start = rs2.getDate("startDate");
+		Date end = rs2.getDate("endDate");
+		int rentalPrice = rs2.getInt("rentalPrice");
+
+		LocalDate localStart = start.toLocalDate();
+		LocalDate localEnd = end.toLocalDate();
+
+		LocalDate today = LocalDate.now();
+		LocalDate laterDate;
+		// If today is after the endDate, then don't make a new availability
+		if (today.isAfter(localEnd))
+			return;
+		// The start date of the new availability should be the later of the two dates.
+		if (today.isAfter(localStart))
+			laterDate = today;
+		else {
+			laterDate = localStart;
+		}
+		
+		Date newDate = Date.valueOf(laterDate);
+		PreparedStatement dateAdd = conn.prepareStatement("INSERT INTO ListingAvailability (listingID, startDate, endDate, rentalPrice) VALUES (?, ?, ?, ?)");		
+		dateAdd.setInt(1, listingID);
+		dateAdd.setDate(2, newDate);
+		dateAdd.setDate(3, end);
+		dateAdd.setInt(4, rentalPrice);
+		dateAdd.executeUpdate();
+	}
+	
+
+	public static void cancelBookingByHost(int userID, int listingID) throws SQLException {
+		listBookedBookingsByListing(listingID); // Display relevant bookings
+		System.out.println("Enter the booking ID to cancel: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid ID: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int bookingID = scanner.nextInt();
+		scanner.nextLine();
+		
+		// Validate bookingID is valid for the renter/listing
+		PreparedStatement idCheck = conn.prepareStatement("SELECT bookingID from booking where bookingID = ? and listingID = ? and statusID=1");
+		idCheck.setInt(1, bookingID);
+		idCheck.setInt(2, listingID);
+		ResultSet rs = idCheck.executeQuery();
+		if (!rs.next())
+		{
+			System.out.println("Invalid ID");
+			return;
+		}
+		// Set cancelled.
+		PreparedStatement cancel = conn.prepareStatement("UPDATE Booking SET statusID=2 where bookingID=?");
+		cancel.setInt(1, bookingID);
+		cancel.executeUpdate();
+		
+		// Insert history value
+		PreparedStatement history = conn.prepareStatement("INSERT INTO BookingHistory (bookingID, statusID, eventBy, eventDateTime) VALUES (?, ?, ?, ?)");
+		history.setInt(1, bookingID);
+		history.setInt(2, 2); // cancel
+		history.setInt(3, userID);
+		history.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+		history.executeUpdate();		
+		
+		// Insert new availability
+		PreparedStatement infoCheck = conn.prepareStatement("SELECT startDate, endDate, rentalPrice from booking where bookingID=? and listingID=?");
+		infoCheck.setInt(1, bookingID);
+		infoCheck.setInt(2, listingID);
+		ResultSet rs2 = infoCheck.executeQuery();
+		rs2.next();
+		
+		Date start = rs2.getDate("startDate");
+		Date end = rs2.getDate("endDate");
+		int rentalPrice = rs2.getInt("rentalPrice");
+
+		LocalDate localStart = start.toLocalDate();
+		LocalDate localEnd = end.toLocalDate();
+
+		LocalDate today = LocalDate.now();
+		LocalDate laterDate;
+		// If today is after the endDate, then don't make a new availability
+		if (today.isAfter(localEnd))
+			return;
+		// The start date of the new availability should be the later of the two dates.
+		if (today.isAfter(localStart))
+			laterDate = today;
+		else {
+			laterDate = localStart;
+		}
+		
+		Date newDate = Date.valueOf(laterDate);
+		PreparedStatement dateAdd = conn.prepareStatement("INSERT INTO ListingAvailability (listingID, startDate, endDate, rentalPrice) VALUES (?, ?, ?, ?)");		
+		dateAdd.setInt(1, listingID);
+		dateAdd.setDate(2, newDate);
+		dateAdd.setDate(3, end);
+		dateAdd.setInt(4, rentalPrice);
+		dateAdd.executeUpdate();
+	}
+	
 	
 	public static void main(String[] args) throws ClassNotFoundException {
 		//Register JDBC driver
@@ -1237,6 +1458,8 @@ public class CSCC43Driver {
 					}
 					break;
 				case "book listing": // current user must be renter and on current listing
+				case "create booking":
+				case "add booking":
 					if (checkUserRenter(currentUserID))
 						bookListing(currentListingID, currentUserID);
 					else {
@@ -1244,11 +1467,25 @@ public class CSCC43Driver {
 					}
 					break;
 				case "cancel booking":
+					if (checkUserRenter(currentUserID)) // renter cancel: has booked?
+					{
+						if (checkUserBookedListing(currentUserID, currentListingID))
+							cancelBookingByRenter(currentUserID, currentListingID);
+						else {
+							System.out.println("You don't have a pending booking for this listing.");
+						}
+					}
+					else { // host cancel: has bookings?
+						cancelBookingByHost(currentUserID, currentListingID);
+					}
 					break;
 				case "occupy booking":
 					break;
-				case "list booking":
-					listBookings(currentListingID);
+				case "list bookings listing":
+					listBookingsByListing(currentListingID);
+					break;
+				case "list bookings user":
+					listBookingsByUser(currentUserID);
 					break;
 				case "add comment":
 					break;
