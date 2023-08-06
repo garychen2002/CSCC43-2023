@@ -1125,6 +1125,25 @@ public class CSCC43Driver {
 		rs.close();
 	}
 	
+	public static void listBookingsForHost(int userID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, concat(u.firstname, ' ', u.lastname) as name, b.listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls inner join Listing l inner join Users u where b.statusID=ls.statusID and b.listingID=l.listingID and l.hostID=? and u.uID=b.renterID");
+		stmt.setInt(1, userID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
 	public static void listBookedBookingsByUserAndListing(int userID, int listingID) throws SQLException {
 		PreparedStatement stmt = conn.prepareStatement("SELECT bookingID, renterID, listingID, startDate, endDate, rentalPrice, ls.name as status from Booking b inner join ListingStatus ls where b.statusID=ls.statusID and renterID=? and listingID=? and b.statusID=1");
 		stmt.setInt(1, userID);
@@ -1385,6 +1404,51 @@ public class CSCC43Driver {
 	
 	public static void addCommentByHost (int userID) throws SQLException {
 		// find all bookings for all listings by this host: joins
+		listBookingsForHost(userID);
+		System.out.println("Enter the booking ID to review: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid ID: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int bookingID = scanner.nextInt();
+		scanner.nextLine();
+		
+		// Validate bookingID is valid for the renter/listing
+		PreparedStatement idCheck = conn.prepareStatement("SELECT bookingID from booking b inner join listing l where bookingID = ? and b.listingID = l.listingID and l.hostID=?");
+		idCheck.setInt(1, bookingID);
+		idCheck.setInt(2, userID);
+		ResultSet rs = idCheck.executeQuery();
+		if (!rs.next())
+		{
+			System.out.println("Invalid ID");
+			return;
+		}
+		System.out.println("Leave a comment: ");
+		String comment = scanner.nextLine();
+		System.out.println("Rate the renter from 1 to 5 stars: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid input: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int experienceRating = scanner.nextInt();
+		scanner.nextLine();
+		if (experienceRating < 1 || experienceRating > 5)
+		{
+			System.out.println("rating out of bounds");
+			return;
+		}
+		
+		PreparedStatement stmt = conn.prepareStatement("INSERT INTO RenterReview (bookingID, rating, comment) VALUES (?, ?, ?)");
+		stmt.setInt(1, bookingID);
+		stmt.setInt(2, experienceRating);
+		stmt.setString(3, comment);
+		stmt.executeUpdate();
+		System.out.println("Rating sent!");
+		
 	}
 	
 	public static void addCommentByRenter (int userID) throws SQLException {
@@ -1659,6 +1723,8 @@ public class CSCC43Driver {
 				case "view comments listing":
 					listCommentsForListing();
 					break;
+				// Search Queries
+				case "search":
 				case "search listing":
 					searchListings();
 					break;
