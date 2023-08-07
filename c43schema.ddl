@@ -122,7 +122,7 @@ create table BookingHistory (
 	foreign key (statusID) references ListingStatus (statusID),
 	eventBy integer,
 	foreign key (eventBy) references Users (uID),
-	eventDateTime datetime
+	eventDateTime datetime default now()
 );
 
 create table ListingReview (
@@ -134,7 +134,7 @@ create table ListingReview (
     hostRating integer,
     CHECK (experienceRating >= 0 and experienceRating <= 5),
 	CHECK (hostRating >= 0 and hostRating <= 5),
-	eventDateTime datetime
+	eventDateTime datetime default now()
     );
 
 create table RenterReview (
@@ -144,6 +144,6 @@ create table RenterReview (
     rating integer,
     comment varchar(8000),
     CHECK (rating >= 0 and rating <= 5),
-	eventDateTime datetime
+	eventDateTime datetime default now()
 );
 
