@@ -339,7 +339,7 @@ INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, 
 INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('6', '2023-10-01', '2023-10-15', '1450');
 INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('7', '2024-01-01', '2024-10-31', '1600');
 INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('8', '2024-03-01', '2024-03-15', '1300');
-INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('9', '2023-09-16', '2013-10-31', '1150');
+INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('9', '2023-09-16', '2023-10-31', '1150');
 INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('10', '2023-07-25', '2023-09-15', '990');
 INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('11', '2023-07-01', '2023-12-31', '1050');
 INSERT INTO `mybnb`.`listingavailability` (`listingID`, `startDate`, `endDate`, `rentalPrice`) VALUES ('11', '2023-06-01', '2023-06-30', '1050');
