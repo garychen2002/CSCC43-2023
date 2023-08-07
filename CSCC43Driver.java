@@ -455,10 +455,12 @@ public class CSCC43Driver {
 		ArrayList<Integer> newIDs = new ArrayList<Integer>();
 		ResultSet rs;
 		ResultSetMetaData rsmd;
+		boolean resultsFound = false;
 		int columns;
-		System.out.println("Choose additional filters: distance, address, date, amenity, postal code, order by price ascending, order by price descending");
+		System.out.println("Choose additional filters: distance, address, date, amenity, postal code, price range, order by price ascending, order by price descending");
 		String input = scanner.nextLine();
 		switch (input) {
+		case "ascending":
 		case "order by price ascending":
 			stmt = conn.prepareStatement("SELECT la.rentalPrice, la.startDate, la.endDate, l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
 					+ "from Listing l inner join ListingAvailability la inner join City c inner join ListingType lt inner join Users u on l.hostID=u.uID and l.listingID=la.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
@@ -468,6 +470,7 @@ public class CSCC43Driver {
 			rsmd = rs.getMetaData();
 			columns = rsmd.getColumnCount();
 			while(rs.next()){
+				resultsFound = true;
 				for (int i = 1; i <= columns; i++)
 				{
 					if (i > 1)
@@ -481,8 +484,12 @@ public class CSCC43Driver {
 				}
 				System.out.println("");
 			}
-			searchListingsFiltered(newIDs);
+			if (resultsFound)
+				searchListingsFiltered(newIDs);
+			else
+				System.out.println("No results found.");
 			break;
+		case "descending":
 		case "order by price descending":
 			stmt = conn.prepareStatement("SELECT la.rentalPrice, la.startDate, la.endDate, l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
 					+ "from Listing l inner join ListingAvailability la inner join City c inner join ListingType lt inner join Users u on l.hostID=u.uID and l.listingID=la.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
@@ -505,7 +512,10 @@ public class CSCC43Driver {
 				}
 				System.out.println("");
 			}
-			searchListingsFiltered(newIDs);
+			if (resultsFound)
+				searchListingsFiltered(newIDs);
+			else
+				System.out.println("No results found.");
 			break;
 		case "quit":
 			break;
@@ -521,14 +531,15 @@ public class CSCC43Driver {
 		ResultSet rs;
 		ResultSetMetaData rsmd;
 		int columns;
-		System.out.println("Search by: distance, address, date, amenity, postal code?");
+		boolean resultsFound = false;
+		System.out.println("Search by: distance, address, date range, amenity, postal code, price range?");
 		String input = scanner.nextLine();
 		switch (input) {
 		case "distance":
 			System.out.println("Specify latitude");
 			if (!scanner.hasNextDouble())
 			{
-				System.out.println("Invalid ID: Not a number");
+				System.out.println("Invalid: Not a number");
 				scanner.nextLine();
 				return;
 			}
@@ -538,7 +549,7 @@ public class CSCC43Driver {
 			System.out.println("Specify longitude");
 			if (!scanner.hasNextDouble())
 			{
-				System.out.println("Invalid ID: Not a number");
+				System.out.println("Invalid: Not a number");
 				scanner.nextLine();
 				return;
 			}
@@ -569,6 +580,7 @@ public class CSCC43Driver {
 			rsmd = rs.getMetaData();
 			columns = rsmd.getColumnCount();
 			while(rs.next()){
+				resultsFound = true;
 				for (int i = 1; i <= columns; i++)
 				{
 					if (i > 1)
@@ -582,17 +594,201 @@ public class CSCC43Driver {
 				}
 				System.out.println("");
 			}
-			searchListingsFiltered(ids);
+			if (resultsFound)
+				searchListingsFiltered(ids);
+			else
+				System.out.println("No results found.");
 			break;
 		case "address":
+			System.out.println("Enter exact address: ");
+			String address = scanner.nextLine();
+			stmt = conn.prepareStatement("SELECT l.address, listingID, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, c.name as city, l.postalCode, description "
+					+ "FROM Listing l inner join ListingType lt inner join City c inner join Users on l.hostID=u.uID"
+					+ "WHERE l.typeID = lt.typeID and l.cityID=c.cityID and l.address=?");
+			stmt.setString(1, address);
+			
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				resultsFound = true;
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						ids.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			if (resultsFound)
+				searchListingsFiltered(ids);
+			else
+				System.out.println("No results found.");
 			break;
-		case "date":
+		case "date range":
+			System.out.println("Enter start date (YYYY-MM-DD)");
+			String startDate = scanner.nextLine();
+			System.out.println("Enter end date YYYY-MM-DD");
+			String endDate = scanner.nextLine();
+			LocalDate start = LocalDate.parse(startDate);
+			LocalDate end = LocalDate.parse(endDate);
+			if (end.isBefore(start))
+			{
+				System.out.println("Invalid: end date before start date");
+				return;
+			}
+			
+			stmt = conn.prepareStatement("SELECT la.startDate, la.endDate, la.rentalPrice, l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
+					+ "from Listing l inner join ListingAvailability la inner join City c inner join ListingType lt inner join Users u on l.hostID=u.uID and l.listingID=la.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
+					+ " WHERE startDate >= ? and endDate <= ? ORDER BY startDate");	
+			stmt.setDate(1, Date.valueOf(startDate));
+			stmt.setDate(2, Date.valueOf(endDate));
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				resultsFound = true;
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						ids.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			if (resultsFound)
+				searchListingsFiltered(ids);
+			else
+				System.out.println("No results found.");
 			break;
 		case "amenity":
+			System.out.println("Enter an amenity you want to filter by: ");
+			String amenity = scanner.nextLine();
+			int amenityID = validateAmenity(amenity);
+			if (amenityID == -1)
+			{
+				System.out.println("Invalid amenity");
+				return;
+			}
+			stmt = conn.prepareStatement("SELECT  l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
+					+ "from Listing l inner join City c inner join ListingType lt inner join Users u inner join ListingAmenities las on l.hostID=u.uID and l.listingID=las.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
+					+ " WHERE amenityID=?");	
+			stmt.setInt(1, amenityID);
+			
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				resultsFound = true;
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						ids.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			if (resultsFound)
+				searchListingsFiltered(ids);
+			else
+				System.out.println("No results found.");
 			break;
 		case "postal":
 		case "postal code":
 		case "postalcode":
+			System.out.println("Enter postal/zip code (XXX YYY or ZZZZZ)");
+			String postalCode = scanner.nextLine();
+			int firstPart = Integer.min(postalCode.length(), 4);
+			stmt = conn.prepareStatement("SELECT  l.postalCode, l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, description "
+					+ "from Listing l inner join City c inner join ListingType lt inner join Users u inner join ListingAmenities las on l.hostID=u.uID and l.listingID=las.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
+					+ " WHERE l.postalcode like ?");	
+			stmt.setString(1, postalCode.substring(0, firstPart)+"%");
+			
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				resultsFound = true;
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						ids.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			if (resultsFound)
+				searchListingsFiltered(ids);
+			else
+				System.out.println("No results found.");
+			break;
+		case "price range":
+			System.out.println("Enter minimum price");
+			if (!scanner.hasNextDouble())
+			{
+				System.out.println("Invalid input: Not a number");
+				scanner.nextLine();
+				return;
+			}
+			double minPrice = scanner.nextDouble();
+			scanner.nextLine();
+			System.out.println("Enter maximum price");
+			if (!scanner.hasNextDouble())
+			{
+				System.out.println("Invalid input: Not a number");
+				scanner.nextLine();
+				return;
+			}
+			double maxPrice = scanner.nextDouble();
+			scanner.nextLine();
+			
+			stmt = conn.prepareStatement("SELECT la.rentalPrice, la.startDate, la.endDate, l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
+					+ "from Listing l inner join ListingAvailability la inner join City c inner join ListingType lt inner join Users u on l.hostID=u.uID and l.listingID=la.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
+					+ " WHERE rentalPrice >= ? and rentalPrice <= ? ORDER BY rentalPrice");			
+			stmt.setDouble(1, minPrice);
+			stmt.setDouble(2, maxPrice);
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				resultsFound = true;
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						ids.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			if (resultsFound)
+				searchListingsFiltered(ids);
+			else
+				System.out.println("No results found.");
 			break;
 		case "quit":
 			break;
