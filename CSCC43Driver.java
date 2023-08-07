@@ -2170,6 +2170,397 @@ public class CSCC43Driver {
 		rs.close();
 	}
 	
+	public static void reportTotalBookingsDateCity() throws SQLException {
+		// Provide a date range
+		System.out.println("Enter start date (YYYY-MM-DD)");
+		String startDate = scanner.nextLine();
+		System.out.println("Enter end date YYYY-MM-DD");
+		String endDate = scanner.nextLine();
+		LocalDate start = LocalDate.parse(startDate);
+		LocalDate end = LocalDate.parse(endDate);
+		if (end.isBefore(start))
+		{
+			System.out.println("Invalid: end date before start date");
+			return;
+		}
+		
+		PreparedStatement stmt = conn.prepareStatement("SELECT c1.name, count(b1.listingID) as bookings from booking b1 inner join listing l1 "
+				+ "on l1.listingID=b1.listingID inner join city c1 on c1.cityID=l1.cityID "
+				+ " WHERE b1.startDate >= ? and b1.endDate <= ?"
+				+ " group by c1.name"
+				+ " order by count(b1.listingID) desc");
+		stmt.setString(1, startDate);
+		stmt.setString(2, endDate);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+		
+	}
+	
+	public static void reportTotalBookingsDateCityPostalCode() throws SQLException {
+		// Limitation: have to provide country, province, and city to get the exact city
+		System.out.println("Country");
+		String country = scanner.nextLine();
+		int countryID = validateCountry(country);
+		if (countryID == -1)
+		{
+			System.out.println("INVALID COUNTRY");
+			return;
+		}
+		System.out.println("province");
+		String province = scanner.nextLine();
+		int provinceID = validateProvince(province, countryID);
+		if (provinceID == -1)
+		{
+			System.out.println("INVALID PROVINCE");
+			return;
+		}
+		System.out.println("city");
+		String city = scanner.nextLine();
+		int cityID = validateCity(city, provinceID);
+		if (cityID == -1)
+		{
+			System.out.println("INVALID CITY");
+			return;
+		}
+
+		// Provide a date range
+		System.out.println("Enter start date (YYYY-MM-DD)");
+		String startDate = scanner.nextLine();
+		System.out.println("Enter end date YYYY-MM-DD");
+		String endDate = scanner.nextLine();
+		LocalDate start = LocalDate.parse(startDate);
+		LocalDate end = LocalDate.parse(endDate);
+		if (end.isBefore(start))
+		{
+			System.out.println("Invalid: end date before start date");
+			return;
+		}
+		
+		
+		PreparedStatement stmt = conn.prepareStatement("SELECT l1.postalCode, count(b1.listingID) as bookings from booking b1 inner join listing l1 "
+				+ "on l1.listingID=b1.listingID inner join city c1 on c1.cityID=l1.cityID "
+				+ " WHERE b1.startDate >= ? and b1.endDate <= ?"
+				+ " group by l1.postalCode"
+				+ " order by count(b1.listingID) desc");
+		stmt.setString(1, startDate);
+		stmt.setString(2, endDate);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportTotalListingsCountry() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select c.name as country, count(l1.listingID) from listing l1 "
+				+ "inner join city c1 on c1.cityID=l1.cityID inner join province p1 on p1.provinceID=c1.provinceID inner join country c on c.countryID=p1.countryID "
+				+ " group by c.name"
+				+ " order by count(l1.listingID) desc");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+		
+	}
+	
+	public static void reportTotalListingsCountryCity() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select c1.name as city, count(l1.listingID) "
+				+ "from listing l1 inner join city c1 on c1.cityID=l1.cityID "
+				+ "group by c1.name order by count(l1.listingID) desc");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportTotalListingsCountryCityPostalCode() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select l1.postalCode, count(l1.listingID) from listing l1 group by l1.postalCode "
+				+ " order by count(l1.listingID)");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportHostsListingsCountry() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select u1.firstName, u1.lastName, c2.name as country, count(l1.listingID) "
+				+ "from users u1 inner join listing l1 on l1.hostID=u1.uID "
+				+ "inner join city c1 on c1.cityID=l1.cityID "
+				+ "inner join province p1 on p1.provinceID=c1.provinceID "
+				+ "inner join country c2 on c2.countryID=p1.countryID "
+				+ "where u1.userTypeID=2 "
+				+ "group by u1.firstName, u1.lastName, c2.name "
+				+ "order by count(l1.listingID) desc");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportHostsListingsCity() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select u1.firstName, u1.lastName, c1.name as city, count(l1.listingID) "
+				+ "from users u1 inner join listing l1 on l1.hostID=u1.uID inner join city c1 on c1.cityID=l1.cityID "
+				+ "where u1.userTypeID=2 group by u1.firstName, u1.lastName, c1.name "
+				+ "order by count(l1.listingID) desc");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportCommercialHosts() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select c1.cityID, c1.name as city, c2.name as country, count(l1.listingID) as count "
+				+ "from listing l1 inner join city c1 on c1.cityID=l1.cityID "
+				+ "inner join province p1 on p1.provinceID=c1.provinceID "
+				+ "inner join country c2 on c2.countryID=p1.countryID "
+				+ "group by c1.cityID, c1.name, c2.name");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		int cityID = -1;
+		int count = 0;
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				if (rsmd.getColumnLabel(i).equals("cityID"))
+				{
+					cityID = Integer.valueOf(value);
+				}
+				else if (rsmd.getColumnLabel(i).equals("count"))
+				{
+					count = Integer.valueOf(value);
+				}
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+
+			double tenpercent = count / 10;
+			PreparedStatement eachStmt = conn.prepareStatement("select u1.firstName, u1.lastName, count(l1.listingID) "
+					+ "from users u1 inner join listing l1 on l1.hostID=u1.uID "
+					+ "where u1.userTypeID=2 and l1.cityID=? "
+					+ "group by u1.firstName, u1.lastName "
+					+ "having count(l1.listingID)>?");
+			eachStmt.setInt(1, cityID);
+			eachStmt.setDouble(2, tenpercent);
+			ResultSet rs2 = eachStmt.executeQuery();
+			ResultSetMetaData rsmd2 = rs2.getMetaData();
+			int columns2 = rsmd2.getColumnCount();
+			while(rs2.next()){
+				for (int j = 1; j <= columns2; j++)
+				{
+					if (j > 1)
+						System.out.print(", ");
+					String value2 = rs2.getString(j);
+					System.out.print(rsmd2.getColumnLabel(j) + ": " + value2); 
+				}
+				System.out.println("");
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportRentersBookings() throws SQLException {
+		// Provide a date range
+		System.out.println("Enter start date (YYYY-MM-DD)");
+		String startDate = scanner.nextLine();
+		System.out.println("Enter end date YYYY-MM-DD");
+		String endDate = scanner.nextLine();
+		LocalDate start = LocalDate.parse(startDate);
+		LocalDate end = LocalDate.parse(endDate);
+		if (end.isBefore(start))
+		{
+			System.out.println("Invalid: end date before start date");
+			return;
+		}
+		
+		PreparedStatement stmt = conn.prepareStatement("select u.uID, u.firstName, u.lastName, count(b.bookingID) as count "
+				+ "from users u inner join booking b on b.renterID=u.uID "
+				+ " where u.userTypeID=1 and b.startDate >= ? and b.endDate <= ? "
+				+ " group by u.uID"
+				+ " order by count(b.bookingID) desc");
+		stmt.setString(1, startDate);
+		stmt.setString(2, endDate);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportRentersBookingsCity() throws SQLException {
+		// at least 2 bookings in the year
+		// Provide a date range
+		System.out.println("Enter start date (YYYY-MM-DD)");
+		String startDate = scanner.nextLine();
+		System.out.println("Enter end date YYYY-MM-DD");
+		String endDate = scanner.nextLine();
+		LocalDate start = LocalDate.parse(startDate);
+		LocalDate end = LocalDate.parse(endDate);
+		if (end.isBefore(start))
+		{
+			System.out.println("Invalid: end date before start date");
+			return;
+		}
+		
+		LocalDate now = LocalDate.now();
+		LocalDate pastYear = now.minusYears(1);
+		Date pastYearDate = Date.valueOf(pastYear);
+		
+		PreparedStatement stmt = conn.prepareStatement("select u.uID, u.firstName, u.lastName, c.name as city, count(b.bookingID) as count "
+				+ "from users u inner join booking b on b.renterID=u.uID inner join listing l on l.listingID=b.listingID inner join city c on c.cityID=l.cityID "
+				+ " where u.userTypeID=1 and b.startDate >= ? and b.endDate <= ? and u.uID IN "
+				+ " ( SELECT b.renterID from booking b where b.startDate >= ? group by b.renterID having count(b.bookingID)>=2)"
+				+ " group by u.uID, c.name"
+				+ " order by count(b.bookingID) desc");
+		stmt.setString(1, startDate);
+		stmt.setString(2, endDate);
+		stmt.setDate(3, pastYearDate);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportCancellationsHost() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select u1.firstName, u1.lastName, count(b1.bookingID) as count "
+				+ " from users u1 inner join listing l1 on l1.hostID=u1.uID inner join booking b2 on b2.listingID=l1.listingID inner join bookinghistory b1 on (b1.bookingID=b2.bookingID and b1.eventBy=l1.hostID and b1.statusID=2) "
+				+ " where u1.userTypeID=2 group by u1.firstName, u1.lastName "
+				+ " order by count(b1.bookingID) desc");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportCancellationsRenter() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select u1.firstName, u1.lastName, count(b1.bookingID) as count "
+				+ " from users u1 inner join bookinghistory b1 on (b1.eventBy=u1.uID and b1.statusID=2) "
+				+ " where u1.userTypeID=1 group by u1.firstName, u1.lastName"
+				+ " order by count(b1.bookingID) desc");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
+	
+	public static void reportPopularPhrases() throws SQLException {
+		
+	}
+	
 	public static void main(String[] args) throws ClassNotFoundException {
 		//Register JDBC driver
 		Class.forName(dbClassName);
@@ -2378,26 +2769,43 @@ public class CSCC43Driver {
 					break;
 				// Reports
 				case "report total bookings date city":
+					reportTotalBookingsDateCity();
 					break;
-				case "report total bookings date city postalcode":
+				case "report total bookings date city postal code":
+					reportTotalBookingsDateCityPostalCode();
 					break;
-				case "report total listings country province city":
+				case "report total listings country":
+					reportTotalListingsCountry();
 					break;
-				case "report total listings country province city postalcode":
+				case "report total listings country city":
+					reportTotalListingsCountryCity();
+					break;
+				case "report total listings country city postal code":
+					reportTotalListingsCountryCityPostalCode();
 					break;
 				case "report host rank country":
+					reportHostsListingsCountry();
 					break;
 				case "report host rank city":
+					reportHostsListingsCity();
 					break;
 				case "report commercial hosts": // 10%
+					reportCommercialHosts();
 					break;
 				case "report renters rank bookings":
+					reportRentersBookings();
 					break;
 				case "report renters rank bookings city":
+					reportRentersBookingsCity();
 					break;
-				case "report cancellations":
+				case "report cancellations host":
+					reportCancellationsHost();
+					break;
+				case "report cancellations renter":
+					reportCancellationsRenter();
 					break;
 				case "report phrases":
+					reportPopularPhrases();
 					break;
 				
 				default:
