@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class CSCC43Driver {
 
@@ -447,16 +448,141 @@ public class CSCC43Driver {
 		return -1;
 	}
 	
-	public static void searchListingsFiltered(ArrayList<Integer> ids) // IDs to search from
+	public static void searchListingsFiltered(ArrayList<Integer> ids) throws SQLException // IDs to search from
 	{
-		
+		int distance = 15000; // default distance = 15 km = 15000 meter
+		PreparedStatement stmt;
+		ArrayList<Integer> newIDs = new ArrayList<Integer>();
+		ResultSet rs;
+		ResultSetMetaData rsmd;
+		int columns;
+		System.out.println("Choose additional filters: distance, address, date, amenity, postal code, order by price ascending, order by price descending");
+		String input = scanner.nextLine();
+		switch (input) {
+		case "order by price ascending":
+			stmt = conn.prepareStatement("SELECT la.rentalPrice, la.startDate, la.endDate, l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
+					+ "from Listing l inner join ListingAvailability la inner join City c inner join ListingType lt inner join Users u on l.hostID=u.uID and l.listingID=la.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
+					+ " WHERE FIND_IN_SET (l.listingID,?) ORDER BY rentalPrice ASC");
+			stmt.setString(1, ids.stream().map(Object::toString).collect(Collectors.joining(",")));
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						newIDs.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			searchListingsFiltered(newIDs);
+			break;
+		case "order by price descending":
+			stmt = conn.prepareStatement("SELECT la.rentalPrice, la.startDate, la.endDate, l.listingID, l.title, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
+					+ "from Listing l inner join ListingAvailability la inner join City c inner join ListingType lt inner join Users u on l.hostID=u.uID and l.listingID=la.listingID and c.cityID=l.cityID and lt.typeID=l.typeID"
+					+ " WHERE FIND_IN_SET (l.listingID,?) ORDER BY rentalPrice DESC");
+			stmt.setString(1, ids.stream().map(Object::toString).collect(Collectors.joining(",")));
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						newIDs.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			searchListingsFiltered(newIDs);
+			break;
+		case "quit":
+			break;
+		default:
+			System.out.println("Unrecognized option.");
+		}
 	}
 	
 	public static void searchListings() throws SQLException {
+		int distance = 15000; // default distance = 15 km = 15000 meter
+		PreparedStatement stmt;
+		ArrayList<Integer> ids = new ArrayList<Integer>();
+		ResultSet rs;
+		ResultSetMetaData rsmd;
+		int columns;
 		System.out.println("Search by: distance, address, date, amenity, postal code?");
 		String input = scanner.nextLine();
 		switch (input) {
 		case "distance":
+			System.out.println("Specify latitude");
+			if (!scanner.hasNextDouble())
+			{
+				System.out.println("Invalid ID: Not a number");
+				scanner.nextLine();
+				return;
+			}
+			double latitude = scanner.nextDouble();
+			scanner.nextLine();
+
+			System.out.println("Specify longitude");
+			if (!scanner.hasNextDouble())
+			{
+				System.out.println("Invalid ID: Not a number");
+				scanner.nextLine();
+				return;
+			}
+			double longitude = scanner.nextDouble();
+			scanner.nextLine();
+			
+			System.out.println("Specify distance in kilometres or leave blank for default 15km");
+			
+			String distanceinput = scanner.nextLine();
+			if (distanceinput.equals(""))
+				distance = 15000;
+			else {
+				try {
+					distance = Integer.parseInt(distanceinput);
+				} catch (Exception e) {
+					System.out.println("Invalid input: Not a number");
+					return;
+				}
+			}
+			stmt = conn.prepareStatement("SELECT concat(ST_DISTANCE(ST_GeomFromText(?, 4326), coordinates, 'metre'), ' metres') as distance, listingID, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(coordinates) as latitude, ST_Longitude(coordinates) as longitude, l.address, c.name as city, l.postalCode, description "
+					+ "FROM Listing l inner join ListingType lt inner join City c inner join Users u on l.hostID=u.uID "
+					+ "WHERE l.typeID = lt.typeID and l.cityID=c.cityID and ST_DISTANCE(ST_GeomFromText(?, 4326), coordinates, 'metre') < ?"
+					+ " ORDER BY distance");
+			stmt.setString(1, "POINT(" + Double.toString(latitude) + " " + Double.toString(longitude) + ")");
+			stmt.setString(2, "POINT(" + Double.toString(latitude) + " " + Double.toString(longitude) + ")");
+			stmt.setInt(3, distance);
+			rs = stmt.executeQuery();
+			rsmd = rs.getMetaData();
+			columns = rsmd.getColumnCount();
+			while(rs.next()){
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					if (rsmd.getColumnLabel(i).equals("listingID"))
+					{
+						ids.add(Integer.valueOf(value));
+					}
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			searchListingsFiltered(ids);
 			break;
 		case "address":
 			break;
@@ -467,7 +593,8 @@ public class CSCC43Driver {
 		case "postal":
 		case "postal code":
 		case "postalcode":
-			
+			break;
+		case "quit":
 			break;
 		default:
 			System.out.println("Unrecognized option.");
@@ -828,25 +955,18 @@ public class CSCC43Driver {
 	}
 	
 	public static void listListings(int uid) throws SQLException {
-		PreparedStatement stmt = conn.prepareStatement("SELECT l.*, ST_Latitude(l.coordinates) as latitude, ST_Longitude(l.coordinates) as longitude FROM Listing l WHERE hostID=? ORDER BY listingID");
+		PreparedStatement stmt = conn.prepareStatement("SELECT listingID, concat(u.firstname, ' ', u.lastname) as host, title, lt.name as type, ST_Latitude(l.coordinates) as latitude, ST_Longitude(l.coordinates) as longitude, l.address, c.name as city, l.postalCode, description FROM Listing l inner join ListingType lt inner join City c inner join Users u on l.hostID=u.uID WHERE hostID=? and l.typeID = lt.typeID and l.cityID=c.cityID ORDER BY listingID");
 		stmt.setInt(1, uid);
 		ResultSet rs = stmt.executeQuery();
 		ResultSetMetaData rsmd = rs.getMetaData();
 		int columns = rsmd.getColumnCount();
 		while(rs.next()){
-			for (int i = 1; i <= columns-2; i++)
+			for (int i = 1; i <= columns; i++)
 			{
 				if (i > 1)
 					System.out.print(", ");
 				String value = rs.getString(i);
-				if (rsmd.getColumnLabel(i).equals("coordinates"))
-				{
-					System.out.print(rsmd.getColumnLabel(columns-1) + ": " + rs.getString(columns-1)); // latitude
-					System.out.print(", ");
-					System.out.print(rsmd.getColumnLabel(columns) + ": " + rs.getString(columns)); // longitude
-				}
-				else
-					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
 			}
 			System.out.println("");
 		}
@@ -1789,6 +1909,7 @@ public class CSCC43Driver {
 					break;
 				// Search Queries
 				case "search":
+				case "search listings":
 				case "search listing":
 					searchListings();
 					break;
