@@ -1515,12 +1515,76 @@ public class CSCC43Driver {
 		
 	}
 	
-	public static void listCommentsForRenter() {
-		int userID;
+	public static void listCommentsForUser() throws SQLException {
+		System.out.println("Enter the user ID to review: ");
+		if (!scanner.hasNextInt())
+		{
+			System.out.println("Invalid ID: Not a number");
+			scanner.nextLine();
+			return;
+		}
+		int userID = scanner.nextInt();
+		scanner.nextLine();
+		
+		if (checkUserRenter(userID))
+		{
+			System.out.println("Showing reviews for renter:");
+			PreparedStatement stmt = conn.prepareStatement("SELECT rr.* from RenterReview rr inner join Booking b where rr.bookingID=b.bookingID and b.renterID=?");
+			stmt.setInt(1, userID);
+			ResultSet rs = stmt.executeQuery();
+			ResultSetMetaData rsmd = rs.getMetaData();
+			int columns = rsmd.getColumnCount();
+			while(rs.next()){
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			rs.close();
+		}
+		else // host
+		{
+			System.out.println("Showing reviews for host:");
+			PreparedStatement stmt = conn.prepareStatement("SELECT l.listingID, l.title, lr.* from ListingReview lr inner join Booking b inner join Listing l where lr.bookingID=b.bookingID and b.listingID=l.listingID and l.hostID=?");
+			stmt.setInt(1, userID);
+			ResultSet rs = stmt.executeQuery();
+			ResultSetMetaData rsmd = rs.getMetaData();
+			int columns = rsmd.getColumnCount();
+			while(rs.next()){
+				for (int i = 1; i <= columns; i++)
+				{
+					if (i > 1)
+						System.out.print(", ");
+					String value = rs.getString(i);
+					System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+				}
+				System.out.println("");
+			}
+			rs.close();
+		}
 	}
 	
-	public static void listCommentsForListing() {
-		int listingID;
+	public static void listCommentsForListing(int listingID) throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("SELECT lr.* from ListingReview lr inner join Booking b where lr.bookingID=b.bookingID and b.listingID=?");
+		stmt.setInt(1, listingID);
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+		}
+		rs.close();
 	}
 	
 	public static void main(String[] args) throws ClassNotFoundException {
@@ -1718,10 +1782,10 @@ public class CSCC43Driver {
 					}
 					break;
 				case "view comments user":
-					listCommentsForRenter();
+					listCommentsForUser();
 					break;
 				case "view comments listing":
-					listCommentsForListing();
+					listCommentsForListing(currentListingID);
 					break;
 				// Search Queries
 				case "search":
