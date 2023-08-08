@@ -2187,11 +2187,11 @@ public class CSCC43Driver {
 			return;
 		}
 		
-		PreparedStatement stmt = conn.prepareStatement("SELECT c1.name, count(b1.listingID) as bookings from booking b1 inner join listing l1 "
+		PreparedStatement stmt = conn.prepareStatement("SELECT c1.name, count(b1.bookingID) as bookings from booking b1 inner join listing l1 "
 				+ "on l1.listingID=b1.listingID inner join city c1 on c1.cityID=l1.cityID "
 				+ " WHERE b1.startDate >= ? and b1.endDate <= ?"
 				+ " group by c1.name"
-				+ " order by count(b1.listingID) desc");
+				+ " order by count(b1.bookingID) desc");
 		stmt.setString(1, startDate);
 		stmt.setString(2, endDate);
 		ResultSet rs = stmt.executeQuery();
@@ -2252,11 +2252,11 @@ public class CSCC43Driver {
 		}
 		
 		
-		PreparedStatement stmt = conn.prepareStatement("SELECT l1.postalCode, count(b1.listingID) as bookings from booking b1 inner join listing l1 "
+		PreparedStatement stmt = conn.prepareStatement("SELECT l1.postalCode, count(b1.bookingID) as bookings from booking b1 inner join listing l1 "
 				+ "on l1.listingID=b1.listingID inner join city c1 on c1.cityID=l1.cityID "
 				+ " WHERE b1.startDate >= ? and b1.endDate <= ?"
 				+ " group by l1.postalCode"
-				+ " order by count(b1.listingID) desc");
+				+ " order by count(b1.bookingID) desc");
 		stmt.setString(1, startDate);
 		stmt.setString(2, endDate);
 		ResultSet rs = stmt.executeQuery();
