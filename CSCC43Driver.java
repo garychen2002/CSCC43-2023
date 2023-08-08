@@ -2383,8 +2383,65 @@ public class CSCC43Driver {
 		}
 		rs.close();
 	}
+	public static void reportCommercialHostsCountry() throws SQLException {
+		PreparedStatement stmt = conn.prepareStatement("select c2.countryID, c2.name as country, count(l1.listingID) as count "
+				+ "from listing l1 inner join city c1 on c1.cityID=l1.cityID "
+				+ "inner join province p1 on p1.provinceID=c1.provinceID "
+				+ "inner join country c2 on c2.countryID=p1.countryID "
+				+ "group by c2.countryID, c2.name");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		int countryID = -1;
+		int count = 0;
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				if (rsmd.getColumnLabel(i).equals("countryID"))
+				{
+					countryID = Integer.valueOf(value);
+				}
+				else if (rsmd.getColumnLabel(i).equals("count"))
+				{
+					count = Integer.valueOf(value);
+				}
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+
+			double tenpercent = count / 10;
+			PreparedStatement eachStmt = conn.prepareStatement("select u1.firstName, u1.lastName, count(l1.listingID) "
+					+ "from users u1 inner join listing l1 on l1.hostID=u1.uID inner join city c1 on c1.cityID=l1.cityID"
+					+ " inner join province p1 on p1.provinceID=c1.provinceID"
+					+ " inner join country c2 on c2.countryID=p1.countryID "
+					+ "where u1.userTypeID=2 and c2.countryID=? "
+					+ "group by u1.firstName, u1.lastName "
+					+ "having count(l1.listingID)>?");
+			eachStmt.setInt(1, countryID);
+			eachStmt.setDouble(2, tenpercent);
+			ResultSet rs2 = eachStmt.executeQuery();
+			ResultSetMetaData rsmd2 = rs2.getMetaData();
+			int columns2 = rsmd2.getColumnCount();
+			while(rs2.next()){
+				for (int j = 1; j <= columns2; j++)
+				{
+					if (j > 1)
+						System.out.print(", ");
+					String value2 = rs2.getString(j);
+					System.out.print(rsmd2.getColumnLabel(j) + ": " + value2); 
+				}
+				System.out.println("");
+			}
+			System.out.println("");
+		}
+		rs.close();
+	}
 	
 	public static void reportCommercialHosts() throws SQLException {
+		reportCommercialHostsCountry();
 		PreparedStatement stmt = conn.prepareStatement("select c1.cityID, c1.name as city, c2.name as country, count(l1.listingID) as count "
 				+ "from listing l1 inner join city c1 on c1.cityID=l1.cityID "
 				+ "inner join province p1 on p1.provinceID=c1.provinceID "
