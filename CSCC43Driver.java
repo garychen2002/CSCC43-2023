@@ -2298,6 +2298,7 @@ public class CSCC43Driver {
 	}
 	
 	public static void reportTotalListingsCountryCity() throws SQLException {
+		reportTotalListingsCountry();
 		PreparedStatement stmt = conn.prepareStatement("select c1.name as city, count(l1.listingID) "
 				+ "from listing l1 inner join city c1 on c1.cityID=l1.cityID "
 				+ "group by c1.name order by count(l1.listingID) desc");
@@ -2318,8 +2319,9 @@ public class CSCC43Driver {
 	}
 	
 	public static void reportTotalListingsCountryCityPostalCode() throws SQLException {
+		reportTotalListingsCountryCity();
 		PreparedStatement stmt = conn.prepareStatement("select l1.postalCode, count(l1.listingID) from listing l1 group by l1.postalCode "
-				+ " order by count(l1.listingID)");
+				+ " order by count(l1.listingID) desc");
 		ResultSet rs = stmt.executeQuery();
 		ResultSetMetaData rsmd = rs.getMetaData();
 		int columns = rsmd.getColumnCount();
