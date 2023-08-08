@@ -2562,7 +2562,7 @@ public class CSCC43Driver {
 	
 	public static void reportPopularPhrases() throws SQLException {
 		HashMap<String, Integer> frequencyMap = new HashMap<>();
-	
+		ArrayList<String> stopwords = new ArrayList<>(Arrays.asList("a", "the", "i", "this", "an", "and", "or", "that", "in", "on", "those", "these", "at", "is", "my", "to"));
 		// for each listing
 		PreparedStatement stmt = conn.prepareStatement("select l.listingID from Listing l order by listingID");
 		ResultSet rs = stmt.executeQuery();
@@ -2598,6 +2598,8 @@ public class CSCC43Driver {
 					{
 					    String[] words = value.toLowerCase().split("[^a-zA-Z']+"); // split all words from comment
 					    for (String word: words) { // add separately
+					    	if (stopwords.contains(word))
+					    		continue;
 							int freq = frequencyMap.getOrDefault(word, 0); // get the current frequency or default 0
 							frequencyMap.put(word, freq+1);
 					    }
