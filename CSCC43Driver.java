@@ -7,8 +7,11 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class CSCC43Driver {
@@ -2558,7 +2561,64 @@ public class CSCC43Driver {
 	}
 	
 	public static void reportPopularPhrases() throws SQLException {
-		
+		HashMap<String, Integer> frequencyMap = new HashMap<>();
+	
+		// for each listing
+		PreparedStatement stmt = conn.prepareStatement("select l.listingID from Listing l order by listingID");
+		ResultSet rs = stmt.executeQuery();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columns = rsmd.getColumnCount();
+		int currentID = -1;
+		while(rs.next()){
+			for (int i = 1; i <= columns; i++)
+			{
+				if (i > 1)
+					System.out.print(", ");
+				String value = rs.getString(i);
+				if (rsmd.getColumnLabel(i).equals("listingID"))
+					currentID = Integer.valueOf(value);
+				System.out.print(rsmd.getColumnLabel(i) + ": " + value); 
+			}
+			System.out.println("");
+			frequencyMap = new HashMap<>();
+			PreparedStatement stmt2 = conn.prepareStatement("SELECT comment "
+					+ " from Listing l join Booking b on l.listingID=b.listingID join ListingReview lr on b.bookingID=lr.bookingID "
+					+ " where l.listingID=?");
+			stmt2.setInt(1,currentID);
+			ResultSet rs2 = stmt2.executeQuery();
+			ResultSetMetaData rsmd2 = rs2.getMetaData();
+			int columns2 = rsmd2.getColumnCount();
+			while(rs2.next()){
+				for (int j = 1; j <= columns2; j++)
+				{
+					if (j > 1)
+						System.out.print(", ");
+					String value = rs2.getString(j);
+					if (rsmd2.getColumnLabel(j).equals("comment"))
+					{
+					    String[] words = value.toLowerCase().split("[^a-zA-Z']+"); // split all words from comment
+					    for (String word: words) { // add separately
+							int freq = frequencyMap.getOrDefault(word, 0); // get the current frequency or default 0
+							frequencyMap.put(word, freq+1);
+					    }
+					}
+				}
+
+			}			
+			// all comments obtained, get the top 5 words
+			Set<Map.Entry<String, Integer>> entrySet = frequencyMap.entrySet();
+			ArrayList<Map.Entry<String, Integer>> entryList = new ArrayList<>(entrySet);
+			entryList.sort(Collections.reverseOrder(Map.Entry.<String,Integer>comparingByValue()));
+			int top5 = Integer.min(5, entryList.size());
+			System.out.println("Top words: ");
+			for (int k = 0; k <= top5-1; k++)
+			{
+				System.out.println("Word: " + entryList.get(k).getKey() + ",           Value: " + entryList.get(k).getValue());
+			}
+
+			System.out.println("");
+		}
+		rs.close();
 	}
 	
 	public static void main(String[] args) throws ClassNotFoundException {
@@ -2569,7 +2629,6 @@ public class CSCC43Driver {
 		final String PASS = "";
 		System.out.println("Connecting to database...");
 		boolean quit = false;
-//		Scanner scanner = new Scanner(System.in);
 		int currentUserID = 1;
 		int currentListingID = 1;
 		try {
