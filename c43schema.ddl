@@ -49,6 +49,7 @@ create table Users (
 	lastname varchar(30) not null,
     address varchar(100),
 	cityID int,
+    foreign key (cityID) references City(cityID),
 	postalCode varchar(10),
     dateofbirth date,
     occupation varchar(60),
@@ -70,6 +71,7 @@ create table Listing (
     coordinates point not null,
     address varchar(100) not null,
 	cityID int,
+    foreign key (cityID) references City (cityID),
 	postalCode varchar(10),
     description varchar(1000) not null
     );
